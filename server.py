@@ -1,70 +1,69 @@
-import socket
-import sys
-def socket_create():
-    try:
-        global host
-        global port
-        global s
+import socket 
+import threading 
 
-        host = ""
-        port = 9999
-        s = socket.socket()
+port = 9999 
+Header = 64 
 
-    except socket.error as msg:
-        print("connection error message " + str(msg)
-)
+FORMAT = "utf-8"
+DISCONNECT_MESSAGE = "!DISCONNECT"
+server_ip = "127.0.0.1"  
+ADDR = (server_ip, port)
 
-# Binding the socket and listening for connections
-def bind_socket():
-    try:
-        global host
-        global port
-        global s
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind(ADDR)
 
-        print("Binding The Port: " + str(port))
-        s.bind((host, port))
-        s.listen(5)
+def send_msg(conn, msg):
+    # send message length first padded to 64 bytes
+    message = msg.encode(FORMAT)
+    msg_length = len(message)
+    send_length = str(msg_length).encode(FORMAT)
+    send_length += b' ' * (Header - len(send_length))
+    conn.send(send_length)
+    conn.send(message)
 
-        print("Socket is listening...")
+def handel_client(conn, addr): 
+    print(f"[NEW CONNECTION] {addr} connected.") 
 
-    except socket.error as msg:
-        print("Socket binding error " + str(msg) + "\nRetrying...")
-        sys.exit()
+    connected = True 
+    while connected: 
+        try:
+            # type a command to send to client
+            cmd = input(f"Command to {addr}: ")
+            if not cmd.strip():
+                continue
 
+            # send command to client
+            send_msg(conn, cmd)
 
+            if cmd.lower() == 'quit' or cmd == DISCONNECT_MESSAGE:
+                connected = False
+                break
 
+            # receive command output from client
+            msg_length = conn.recv(Header).decode(FORMAT)
+            if not msg_length:
+                break
 
-def socket_accept(): 
-    conn, address = s.accept() 
-    print("Connection has been established! |" + " IP " + address[0] + " | Port " + str(address[1]))
-    send_command(conn)
+            msg_length = int(msg_length.strip())
+            msg = conn.recv(msg_length).decode(FORMAT)
+
+            print(f"\n[OUTPUT FROM {addr}]:\n{msg}")
+
+        except socket.error:
+            print(f"[ERROR] Connection lost with {addr}")
+            break
+
     conn.close()
+    print(f"[DISCONNECTED] {addr} disconnected.")
 
+def start(): 
+    server.listen()
+    print(f"[LISTENING] Server is listening on {server_ip}:{port}")
+    while True: 
+        conn, addr = server.accept() 
+        thread = threading.Thread(target=handel_client, args=(conn, addr)) 
+        thread.start() 
+        print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
 
-def send_command(con) : 
-        while True : 
-            cmd = input()
-            if cmd == 'quit': 
-                con.close()
-                s.close()
-                sys.exit()
-                
-            if len(str.encode(cmd)) > 0 : 
-                try:
-                    con.send(str.encode(cmd))
-                    client_response = str(con.recv(1024), "utf-8")
-                    print(client_response, end="")      
-
-                except socket.error:
-                    print("\nClient disconnected!")
-                    con.close()
-                    break 
-
-
-def main (): 
-
-    socket_create()
-    bind_socket()   
-    socket_accept()
-
-main()
+print("[STARTING] server is starting...")
+start()
